@@ -25,7 +25,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
   path: '/socket.io',
   cors: {
-    origin: ['https://velvety-puppy-66a229.netlify.app/'],
+    origin: 'https://velvety-puppy-66a229.netlify.app/',
     credentials: true
   }
 });
