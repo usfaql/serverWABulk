@@ -16,7 +16,7 @@ let changeStream;
 
 
 app.use(cors({
-  origin: ['http://localhost:3000'],
+  origin: ['https://velvety-puppy-66a229.netlify.app/'],
   credentials: true
 }));
 app.use(bodyParser.json());
@@ -25,7 +25,7 @@ const server = http.createServer(app);
 const io = new Server(server, {
   path: '/socket.io',
   cors: {
-    origin: ['http://localhost:3000'],
+    origin: ['https://velvety-puppy-66a229.netlify.app/'],
     credentials: true
   }
 });
