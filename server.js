@@ -16,7 +16,7 @@ let changeStream;
 
 
 app.use(cors({
-  origin: ['https://velvety-puppy-66a229.netlify.app/'],
+  origin: 'https://velvety-puppy-66a229.netlify.app/',
   credentials: true
 }));
 app.use(bodyParser.json());
