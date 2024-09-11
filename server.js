@@ -15,20 +15,11 @@ const PORT = 5000;
 let changeStream;
 
 
-app.use(cors({
-  origin: 'https://velvety-puppy-66a229.netlify.app/',
-  credentials: true
-}));
+app.use(cors());
 app.use(bodyParser.json());
 
 const server = http.createServer(app);
-const io = new Server(server, {
-  path: '/socket.io',
-  cors: {
-    origin: 'https://velvety-puppy-66a229.netlify.app/',
-    credentials: true
-  }
-});
+const io = new Server(server,{cors:{origin:"*"}});
 
 const PhoneNumberSchema = new mongoose.Schema({
     number : String,
