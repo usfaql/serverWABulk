@@ -225,6 +225,8 @@ const countryCode = {
   "+998": "Uzbekistan"
 }
 
+
+
 const getCountyFromNumber = (number) =>{
     const code = number.split(' ')[0];
     return countryCode[code] || 'Unknown'
@@ -388,40 +390,69 @@ app.post('/save-number', async (req, res) => {
   })
 
   app.get('/download-csv', async (req, res) => {
-    try {
-        const phoneNumbers = await PhoneNumber.find();
-        const groupedNumbers = phoneNumbers.reduce((acc, { number, country }) => {
-            if (!acc[country]) {
-                acc[country] = [];
-            }
-            acc[country].push(number);
-            return acc;
-        }, {});
+      try {
+    const phoneNumbers = await PhoneNumber.find();
+    
+    // تصنيف الأرقام بناءً على الفئات
+    const categories = {
+      gulf: ["Saudi-Arabia", "UAE", "Kuwait", "Qatar", "Oman", "Bahrain"],
+      levant: ["Syria", "Lebanon", "Jordan", "Palestine"],
+      arabicAfrica: ["Egypt", "Libya", "Algeria", "Morocco", "Tunisia", "Mauritania", "Sudan"],
+      frenchAfrica: ["Mauritania", "Algeria", "Morocco", "Tunisia", "Chad", "Ivory-Coast", "Senegal", "Mali"],
+      europe: ["Iceland", "Belgium", "Switzerland", "France", "Germany", "Luxembourg", "Italy", "Spain", "Portugal", "United-Kingdom"],
+      americas: ["United-States", "Canada", "Mexico", "Brazil", "Argentina"],
+      asia: ["China", "Japan", "India", "South-Korea", "Singapore"],
+      oceania: ["Australia", "New-Zealand", "Fiji"],
+      africa: ["Nigeria", "Kenya", "South-Africa", "Ghana"],
+      middleEast: ["Turkey", "Israel", "Iraq", "Saudi-Arabia"]
+    };
 
-        const headers = Object.keys(groupedNumbers).map(country => ({
-            id: country,
-            title: country
-        }));
+    // تنظيم الأرقام حسب الفئات
+    const groupedByCategory = Object.keys(categories).reduce((acc, category) => {
+      acc[category] = {};
+      categories[category].forEach(country => {
+        acc[category][country] = [];
+      });
+      return acc;
+    }, {});
 
-        const maxRows = Math.max(...Object.values(groupedNumbers).map(arr => arr.length));
-        const records = Array.from({ length: maxRows }).map((_, rowIndex) => {
-            const row = {};
-            for (const [country, numbers] of Object.entries(groupedNumbers)) {
-                row[country] = numbers[rowIndex] || '';
-            }
-            return row;
+    phoneNumbers.forEach(({ number, country }) => {
+      for (const [category, countries] of Object.entries(categories)) {
+        if (countries.includes(country)) {
+          groupedByCategory[category][country].push(number);
+        }
+      }
+    });
+
+    // إعداد رؤوس الأعمدة
+    const headers = ['Category', 'Country', 'Number'];
+
+    // إعداد السجلات CSV
+    const records = [];
+    
+    // إدراج البيانات من الفئات
+    Object.entries(groupedByCategory).forEach(([category, countries]) => {
+      records.push({ Category: category, Country: '', Number: '' }); // إضافة عنوان الفئة
+      Object.entries(countries).forEach(([country, numbers]) => {
+        records.push({ Category: '', Country: country, Number: '' }); // إضافة اسم الدولة
+        numbers.forEach(number => {
+          records.push({ Category: '', Country: '', Number: number }); // إضافة الأرقام
         });
+      });
+    });
 
-        const csvWriter = createObjectCsvWriter({
-            path: 'phone_numbers.csv',
-            header: headers
-        });
+    // كتابة CSV
+    const csvWriter = createObjectCsvWriter({
+      path: 'phone_numbers_by_category.csv',
+      header: headers.map(header => ({ id: header.toLowerCase(), title: header }))
+    });
 
-        await csvWriter.writeRecords(records);
-        res.download('phone_numbers.csv');
-    } catch (error) {
-        res.status(500).send('Error generating CSV file.');
-    }
+    await csvWriter.writeRecords(records);
+    res.download('phone_numbers_by_category.csv');
+  } catch (error) {
+    console.error('Error generating CSV file:', error);
+    res.status(500).send('Error generating CSV file.');
+  }
 });
 
 app.get('/download-csv/:country', async (req, res) => {
