@@ -17,7 +17,7 @@ const phoneRouter = require('./routes/Phones');
 
 
 app.use(cors({
-  origin: ['http://localhost:3000'],
+  origin: ['https://serverwabulk.onrender.com'],
   credentials: true
 }));
 
