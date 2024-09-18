@@ -228,9 +228,11 @@ const saveNumber = async(req, res) =>{
                 number,
                 country: getCountyFromNumber(number)
             }));
-  
+
+        const duplicateCount = phoneNumbers.length - uniqueNumbers.length; // حساب عدد الأرقام المكررة
+
         if (uniqueNumbers.length > 0) {
-            const result = await PhoneNumber.insertMany(uniqueNumbers);
+          await PhoneNumber.insertMany(uniqueNumbers, { ordered: false });
   
             const countsByCountry = uniqueNumbers.reduce((acc, { country }) => {
                 acc[country] = (acc[country] || 0) + 1;
@@ -243,14 +245,16 @@ const saveNumber = async(req, res) =>{
                 status: true,
                 message: 'Successfully added data to DB',
                 addedNumbers: uniqueNumbers,
+                skippedDuplicates: duplicateCount,
                 result
             });
         } else {
-            res.status(302).json({
-                status: true,
-                message: 'All numbers are already present in the database',
-                addedNumbers: []
-            });
+          res.status(200).json({
+            status: true,
+            message: `No new numbers added. All ${duplicateCount} numbers were duplicates.`,
+            addedNumbers: [],
+            skippedDuplicates: duplicateCount
+        });
         }
     } catch (error) {
         console.error('Error saving numbers', error);
@@ -296,7 +300,30 @@ const getNumberByName = async(req, res) =>{
       })
     }
 }
+const getAllNumberByAllCountry = async (req, res) => {
+  try {
+      const numbers = await PhoneNumber.find();
 
+      if (numbers.length > 0) {
+          res.status(200).json({
+              status: true,
+              message: `Found ${numbers.length} numbers for all countries`,
+              data: numbers
+          });
+      } else {
+          res.status(404).json({
+              status: false,
+              message: `No numbers found for any country`
+          });
+      }
+  } catch (error) {
+      res.status(500).json({
+          status: false,
+          message: `Error fetching data`,
+          error: error.message
+      });
+  }
+};
 const getAllCountry = async(req,res)=>{
     try {
         const countries = await PhoneNumber.distinct('country');
@@ -479,9 +506,13 @@ const getCountCountry = async(req, res) =>{
       }
 }
 
-const checkWhatsApp = async(req,res) =>{
-    const { numbers } = req.body;
 
+
+
+/*
+const checkWhatsApp = async(req,res) =>{
+    const numbers = ['+962789991280', '+962789991584'];
+    console.log(numbers)
     if (!Array.isArray(numbers)) {
         return res.status(400).json({ error: 'Numbers must be an array' });
     }
@@ -499,7 +530,44 @@ const checkWhatsApp = async(req,res) =>{
         res.status(500).json({ error: 'Error checking numbers' });
     }
 }
+let qrImage = null;
 
+client.on('qr', async (qr) => {
+  try {
+    qrImage = await qrcode.toDataURL(qr);
+    console.log('QR RECEIVED');
+  } catch (error) {
+    console.error('Error generating QR code:', error);
+  }
+});
+
+
+client.on('ready', () => {
+  console.log('Client is ready!');
+});
+
+client.on('authenticated', () => {
+  console.log('Client is authenticated!');
+});
+
+client.on('auth_failure', msg => {
+  console.error('AUTHENTICATION FAILURE', msg);
+});
+
+client.on('disconnected', (reason) => {
+  console.log('Client was logged out', reason);
+});
+
+client.initialize();
+
+const getQrCode = (req, res) => {
+  if (qrImage) {
+    res.send(qrImage);
+  } else {
+    res.status(404).send('QR Code not available');
+  }
+};
+*/
 module.exports = {
     saveNumber,
     getNumberByName,
@@ -507,5 +575,8 @@ module.exports = {
     downloadAllData,
     downloadDataByCountry,
     getCountCountry,
-    checkWhatsApp
+    getAllNumberByAllCountry
+    //checkWhatsApp,
+    //getQrCode,
+    //client
 }
