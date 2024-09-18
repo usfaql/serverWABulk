@@ -15,24 +15,14 @@ const PORT = 5000;
 const phoneRouter = require('./routes/Phones');
 
 
-
-app.use(cors({
-  origin: ['https://serverwabulk.onrender.com'],
-  credentials: true
-}));
+app.use(cors());
 
 app.use(express.json());
 app.use(bodyParser.json());
 
 app.use('/', phoneRouter);
 const server = http.createServer(app);
-const io = new Server(server, {
-  path: '/socket.io',
-  cors: {
-    origin: ['https://serverwabulk.onrender.com'],
-    credentials: true
-  }
-});
+const io = new Server(server ,{cors:{origin:"*"}});
 
 /*
 const client = new Client({ authStrategy: new LocalAuth() });
