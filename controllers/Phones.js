@@ -321,7 +321,7 @@ const getAllCountry = async(req,res)=>{
       });
     }
 }
-
+/*
 const downloadAllData = async(req,res) =>{
     try {
         const phoneNumbers = await PhoneNumber.find();
@@ -358,7 +358,54 @@ const downloadAllData = async(req,res) =>{
         res.status(500).send('Error generating CSV file.');
     }
 }
+*/
 
+const downloadAllData = async (req, res) => {
+  try {
+      const phoneNumbers = await PhoneNumber.find();
+      const groupedNumbers = phoneNumbers.reduce((acc, { number, country }) => {
+          if (!acc[country]) {
+              acc[country] = [];
+          }
+          acc[country].push(number);
+          return acc;
+      }, {});
+
+      const workbook = new ExcelJS.Workbook();
+      const worksheet = workbook.addWorksheet('PhoneNumbers');
+
+      // Set headers
+      const headers = Object.keys(groupedNumbers);
+      worksheet.addRow(headers);
+
+      // Find maximum number of rows needed
+      const maxRows = Math.max(...Object.values(groupedNumbers).map(arr => arr.length));
+      
+      // Fill rows
+      for (let i = 0; i < maxRows; i++) {
+          const row = headers.map(header => groupedNumbers[header][i] || '');
+          worksheet.addRow(row);
+      }
+
+      // Write the file
+      const filePath = 'phone_numbers.xlsx';
+      await workbook.xlsx.writeFile(filePath);
+      
+      // Send the file to the client
+      res.download(filePath, (err) => {
+          if (err) {
+              console.error('Error sending file:', err);
+              res.status(500).send('Error sending file.');
+          }
+          // Optionally, remove the file after sending it
+          fs.unlinkSync(filePath);
+      });
+
+  } catch (error) {
+      console.error('Error generating Excel file:', error);
+      res.status(500).send('Error generating Excel file.');
+  }
+};
 
 const downloadDataByCountry = async(req,res) => {
     const { country } = req.params;
