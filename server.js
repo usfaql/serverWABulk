@@ -1,5 +1,4 @@
 const express = require("express");
-const bodyParser = require('body-parser');
 require("./models/db.js");
 const cors = require('cors');
 const http = require('http');
@@ -18,7 +17,6 @@ const phoneRouter = require('./routes/Phones');
 app.use(cors());
 
 app.use(express.json());
-app.use(bodyParser.json());
 
 app.use('/', phoneRouter);
 const server = http.createServer(app);
