@@ -321,7 +321,7 @@ const getAllCountry = async(req,res)=>{
       });
     }
 }
-/*
+
 const downloadAllData = async(req,res) =>{
     try {
         const phoneNumbers = await PhoneNumber.find();
@@ -358,63 +358,8 @@ const downloadAllData = async(req,res) =>{
         res.status(500).send('Error generating CSV file.');
     }
 }
-*/
 
-const downloadAllData = async (req, res) => {
-    try {
-        // إنشاء دفق الكتابة إلى ملف CSV
-        const csvStream = format({ headers: true });
-        const writableStream = fs.createWriteStream('phone_numbers.csv');
 
-        // معالجة كتابة البيانات عند الانتهاء
-        writableStream.on('finish', () => {
-            res.download('phone_numbers.csv');
-        });
-
-        csvStream.pipe(writableStream);
-
-        // جلب البيانات على دفعات من قاعدة البيانات
-        const batchSize = 10000; // تعيين حجم الدفعة
-        let skip = 0;
-        let hasMoreData = true;
-
-        while (hasMoreData) {
-            const phoneNumbers = await PhoneNumber.find().skip(skip).limit(batchSize);
-
-            if (phoneNumbers.length === 0) {
-                hasMoreData = false;
-                break;
-            }
-
-            // تجميع الأرقام حسب البلد
-            const groupedNumbers = phoneNumbers.reduce((acc, { number, country }) => {
-                if (!acc[country]) {
-                    acc[country] = [];
-                }
-                acc[country].push(number);
-                return acc;
-            }, {});
-
-            // كتابة الأرقام إلى CSV
-            const maxRows = Math.max(...Object.values(groupedNumbers).map(arr => arr.length));
-            for (let rowIndex = 0; rowIndex < maxRows; rowIndex++) {
-                const row = {};
-                for (const [country, numbers] of Object.entries(groupedNumbers)) {
-                    row[country] = numbers[rowIndex] || '';
-                }
-                csvStream.write(row); // كتابة الصف إلى CSV
-            }
-
-            skip += batchSize;
-        }
-
-        csvStream.end(); // إنهاء دفق الكتابة
-
-    } catch (error) {
-        console.error('Error generating CSV:', error);
-        res.status(500).send('Error generating CSV file.');
-    }
-};
 const downloadDataByCountry = async(req,res) => {
     const { country } = req.params;
 
