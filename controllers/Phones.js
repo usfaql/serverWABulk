@@ -1,7 +1,11 @@
 const PhoneNumber = require('../models/PhoneNumberSchema');
 const { createObjectCsvWriter } = require('csv-writer');
-const fs = require('fs');
 const { format } = require('@fast-csv/format');
+const fs = require('fs');
+const path = require('path');
+const { MongoClient } = require('mongodb');
+const url = 'mongodb+srv://usfaqll:lhCZp7Feyrs8kW74@cluster0.drkzmdw.mongodb.net/phoneNumberDB'; // Your MongoDB connection URL
+const client = new MongoClient(url);
 
 const countryCode = {
     "+213": "Algeria",
@@ -215,57 +219,398 @@ const countryCode = {
       return countryCode[code] || 'Unknown'
   }
 
-const saveNumber = async(req, res) =>{
+  const countryMap = {
+    arabic_countries: [
+      "Algeria",
+      "Western-Sahara",
+      "Morocco",
+      "Tunisia",
+      "Libya",
+      "Yemen",
+      "Syria",
+      "Lebanon",
+      "Jordan",
+      "Palestine",
+      "Israel",
+      "Iraq",
+      "Saudi-Arabia",
+      "UAE",
+      "Kuwait",
+      "Qatar",
+      "Oman",
+      "Bahrain",
+      "Egypt",
+      "Sudan",
+      "South-Sudan"
+  ], 
+    asian_countries: [
+      "China",
+      "Singapore",
+      "Malaysia",
+      "Indonesia",
+      "Iran",
+      "Afghanistan",
+      "Vietnam",
+      "South-Korea",
+      "Japan",
+      "Tajikistan",
+      "Pakistan",
+      "Australia",
+      "Brunei",
+      "Tonga",
+      "Cook-Islands",
+      "Tokelau",
+      "Sri-Lanka",
+      "Nepal",
+      "India",
+      "Bangladesh",
+      "Nigeria",
+      "Zambia",
+      "Cameroon",
+      "Ethiopia",
+      "Tanzania",
+      "Mozambique",
+      "Mauritius",
+      "Sierra-Leone",
+      "Zimbabwe",
+      "Lesotho",
+      "Botswana",
+      "Eswatini",
+      "New-Zealand",
+      "Macau",
+      "Malawi",
+      "Angola",
+      "Gambia",
+      "Guinea",
+      "Niger",
+      "Republic-of-the-Congo",
+      "Madagascar",
+      "East Timor",
+      "Maldives",
+      "Benin",
+      "Laos",
+      "Rwanda",
+      "Burundi",
+      "Namibia",
+      "Saint-Helena",
+      "Azerbaijan",
+      "Burkina-Faso",
+      "Equatorial-Guinea",
+      "Slovakia",
+      "Romania",
+      "Gabon",
+      "Central-African-Republic",
+      "Peru",
+      "Hungary",
+      "Taiwan",
+      "Myanmar",
+      "Djibouti",
+      "Cambodia",
+      "Mongolia",
+      "Cuba",
+      "Czech-Republic",
+      "Seychelles",
+      "Guinea-Bissau",
+      "Uzbekistan"
+  ], 
+    european_countries: [
+      "Iceland",
+      "Belgium",
+      "Switzerland",
+      "France",
+      "Germany",
+      "Luxembourg",
+      "Italy",
+      "San-Marino",
+      "Vatican",
+      "Spain",
+      "Andorra",
+      "Bulgaria",
+      "Gibraltar",
+      "Ireland",
+      "Albania",
+      "Malta",
+      "Netherlands",
+      "Poland",
+      "Belarus",
+      "Kyrgyzstan",
+      "Ukraine",
+      "Serbia",
+      "Montenegro",
+      "Kosovo",
+      "Croatia",
+      "Slovenia",
+      "Bosnia-and-Herzegovina",
+      "North-Macedonia",
+      "Moldova",
+      "Greece",
+      "Cyprus",
+      "Lithuania",
+      "Latvia",
+      "Estonia",
+      "Finland",
+      "Norway",
+      "Sweden",
+      "Denmark",
+      "United-Kingdom",
+      "Austria",
+      "Slovakia",
+      "Romania",
+      "Hungary",
+      "Czech-Republic"
+  ], 
+    african_countries: [
+      "Ivory-Coast",
+      "Senegal",
+      "Mali",
+      "Kenya",
+      "Democratic-Republic-of-the-Congo",
+      "Togo",
+      "Liberia",
+      "Ghana",
+      "South-Africa",
+      "Uganda",
+      "Réunion",
+      "Somalia",
+      "Rwanda",
+      "Burundi",
+      "Namibia",
+      "Mauritius",
+      "Sierra-Leone",
+      "Zimbabwe",
+      "Lesotho",
+      "Botswana",
+      "Eswatini",
+      "Cameroon",
+      "Ethiopia",
+      "Tanzania",
+      "Mozambique",
+      "Benin",
+      "Burkina-Faso",
+      "Equatorial-Guinea",
+      "Republic-of-the-Congo",
+      "Madagascar",
+      "Angola",
+      "Guinea-Bissau"
+  ], 
+    american_countries: [
+      "United-States-and-Canada",
+      "Belize",
+      "Guatemala",
+      "El-Salvador",
+      "Honduras",
+      "Nicaragua",
+      "Costa-Rica",
+      "Panama",
+      "Haiti",
+      "Guadeloupe",
+      "Martinique",
+      "Dutch-Caribbean",
+      "Mexico",
+      "Argentina",
+      "Brazil",
+      "Portugal",
+      "Chile",
+      "Colombia",
+      "Venezuela",
+      "Bolivia",
+      "Guyana",
+      "Ecuador",
+      "French-Guiana",
+      "Paraguay",
+      "Suriname",
+      "Uruguay"
+  ]
+};
+
+/*
+const insertNumber = async (number, country) => {
     try {
-        const phoneNumbers = req.body.numbers;
-  
-        const existingNumbers = await PhoneNumber.find({ number: { $in: phoneNumbers } });
-        const existingNumberSet = new Set(existingNumbers.map(entry => entry.number));
-  
-        const uniqueNumbers = phoneNumbers
-            .filter(number => !existingNumberSet.has(number))
-            .map(number => ({
-                number,
-                country: getCountyFromNumber(number)
-            }));
-
-        const duplicateCount = phoneNumbers.length - uniqueNumbers.length; // حساب عدد الأرقام المكررة
-
-        if (uniqueNumbers.length > 0) {
-          await PhoneNumber.insertMany(uniqueNumbers, { ordered: false });
-  
-            const countsByCountry = uniqueNumbers.reduce((acc, { country }) => {
-                acc[country] = (acc[country] || 0) + 1;
-                return acc;
-            }, {});
-  
-            io.emit('newNumbersSummary', countsByCountry);
-  
-            res.status(200).json({
-                status: true,
-                message: 'Successfully added data to DB',
-                addedNumbers: uniqueNumbers,
-                skippedDuplicates: duplicateCount,
-                result
-            });
-        } else {
-          res.status(200).json({
-            status: true,
-            message: `No new numbers added. All ${duplicateCount} numbers were duplicates.`,
-            addedNumbers: [],
-            skippedDuplicates: duplicateCount
-        });
+        await client.connect();
+        const db = client.db('phoneNumberDB');
+        
+        let collection;
+        for (const [category, countries] of Object.entries(countryMap)) {
+            if (countries.includes(country)) {
+                collection = db.collection(category);
+                break;
+            }
         }
-    } catch (error) {
-        console.error('Error saving numbers', error);
-        res.status(500).json({
-            status: false,
-            message: 'Server Error',
-            error
-        });
+
+        if (collection) {
+            await collection.insertOne({ number, country });
+        } else {
+            console.log('Country not found in any category');
+        }
+    } finally {
+        await client.close();
     }
-}
- 
+};
+
+const saveNumber = async (req, res) => {
+  try {
+      const phoneNumbers = req.body.numbers;
+
+      // استعلام للعثور على الأرقام الموجودة مسبقًا
+      const existingNumbers = await PhoneNumber.find({ number: { $in: phoneNumbers } });
+      const existingNumberSet = new Set(existingNumbers.map(entry => entry.number));
+
+      // تصفية الأرقام الجديدة
+      const uniqueNumbers = phoneNumbers
+          .filter(number => !existingNumberSet.has(number))
+          .map(number => ({
+              number,
+              country: getCountyFromNumber(number)
+          }));
+
+      const duplicateCount = phoneNumbers.length - uniqueNumbers.length; // حساب عدد الأرقام المكررة
+
+      if (uniqueNumbers.length > 0) {
+          // إدخال الأرقام الجديدة في المجموعات المناسبة
+          for (const { number, country } of uniqueNumbers) {
+              // إضافة الرقم إلى قاعدة البيانات أولاً
+              await PhoneNumber.create({ number, country });
+
+              // إدخال الرقم في الفئة المناسبة بناءً على البلد
+              await insertNumber(number, country);
+          }
+
+          // حساب الأعداد حسب البلد
+          const countsByCountry = uniqueNumbers.reduce((acc, { country }) => {
+              acc[country] = (acc[country] || 0) + 1;
+              return acc;
+          }, {});
+
+          // ارسال تحديث عدد الأرقام عبر الـ WebSocket
+          // io.emit('newNumbersSummary', countsByCountry);
+
+          res.status(200).json({
+              status: true,
+              message: 'Successfully added data to DB',
+              addedNumbers: uniqueNumbers,
+              skippedDuplicates: duplicateCount
+          });
+      } else {
+          res.status(302).json({
+              status: true,
+              message: `No new numbers added. All ${duplicateCount} numbers were duplicates.`,
+              addedNumbers: [],
+              skippedDuplicates: duplicateCount
+          });
+      }
+  } catch (error) {
+      console.error('Error saving numbers', error);
+      res.status(500).json({
+          status: false,
+          message: 'Server Error',
+          error
+      });
+  }
+};
+*/
+
+
+const insertNumbers = async (numbers) => {
+  try {
+      await client.connect();
+      const db = client.db('phoneNumberDB');
+
+      // جمع العمليات للـ bulkWrite
+      const operations = {};
+
+      // تصنيف الأرقام حسب الفئات
+      for (const { number, country } of numbers) {
+          let collection;
+          for (const [category, countries] of Object.entries(countryMap)) {
+              if (countries.includes(country)) {
+                  collection = category;
+                  break;
+              }
+          }
+
+          if (collection) {
+              if (!operations[collection]) {
+                  operations[collection] = [];
+              }
+              operations[collection].push({
+                  insertOne: {
+                      document: { number, country }
+                  }
+              });
+          } else {
+              console.log('Country not found in any category');
+          }
+      }
+
+      // تنفيذ العمليات في المجموعات المناسبة
+      await Promise.all(Object.entries(operations).map(async ([category, ops]) => {
+          const collection = db.collection(category);
+          await collection.bulkWrite(ops);
+      }));
+  } finally {
+      await client.close();
+  }
+};
+
+const saveNumber = async (req, res) => {
+  try {
+      const phoneNumbers = req.body.numbers;
+
+      // استعلام للعثور على الأرقام الموجودة مسبقًا
+      const existingNumbers = await PhoneNumber.find({ number: { $in: phoneNumbers } });
+      const existingNumberSet = new Set(existingNumbers.map(entry => entry.number));
+
+      // تصفية الأرقام الجديدة
+      const uniqueNumbers = phoneNumbers
+          .filter(number => !existingNumberSet.has(number))
+          .map(number => ({
+              number,
+              country: getCountyFromNumber(number)
+          }));
+
+      const duplicateCount = phoneNumbers.length - uniqueNumbers.length; // حساب عدد الأرقام المكررة
+
+      if (uniqueNumbers.length > 0) {
+          // إضافة الأرقام الجديدة إلى قاعدة بيانات PhoneNumber بشكل جماعي
+          await PhoneNumber.insertMany(uniqueNumbers);
+
+          // إدخال الأرقام في المجموعات المناسبة
+          await insertNumbers(uniqueNumbers);
+
+          // حساب الأعداد حسب البلد
+          const countsByCountry = uniqueNumbers.reduce((acc, { country }) => {
+              acc[country] = (acc[country] || 0) + 1;
+              return acc;
+          }, {});
+
+          // ارسال تحديث عدد الأرقام عبر الـ WebSocket
+          // io.emit('newNumbersSummary', countsByCountry);
+
+          res.status(200).json({
+              status: true,
+              message: 'Successfully added data to DB',
+              addedNumbers: uniqueNumbers,
+              skippedDuplicates: duplicateCount
+          });
+      } else {
+          res.status(302).json({
+              status: true,
+              message: `No new numbers added. All ${duplicateCount} numbers were duplicates.`,
+              addedNumbers: [],
+              skippedDuplicates: duplicateCount
+          });
+      }
+  } catch (error) {
+      console.error('Error saving numbers', error);
+      res.status(500).json({
+          status: false,
+          message: 'Server Error',
+          error
+      });
+  }
+};
+
+
 const getNumberByName = async(req, res) =>{
     const {country} = req.params
 
@@ -300,30 +645,225 @@ const getNumberByName = async(req, res) =>{
       })
     }
 }
-const getAllNumberByAllCountry = async (req, res) => {
-  try {
-      const numbers = await PhoneNumber.find();
+/*
+const getNumberByCollection = async (req, res) => {
+  const { collectionName } = req.body; // استقبال collectionName من الطلب
 
-      if (numbers.length > 0) {
-          res.status(200).json({
-              status: true,
-              message: `Found ${numbers.length} numbers for all countries`,
-              data: numbers
-          });
-      } else {
-          res.status(404).json({
-              status: false,
-              message: `No numbers found for any country`
-          });
+    if (!collectionName) {
+        return res.status(400).json({
+            status: false,
+            message: 'Collection name is missing'
+        });
+    }
+
+    try {
+        // الاتصال بقاعدة البيانات
+        await client.connect();
+        const db = client.db('phoneNumberDB'); // استبدل phoneNumberDB باسم قاعدة البيانات الخاصة بك
+
+        // التأكد من وجود اسم المجموعة
+        if (!db.collection(collectionName)) {
+            return res.status(404).json({
+                status: false,
+                message: `Collection ${collectionName} not found`
+            });
+        }
+
+        // جلب المجموعة المطلوبة
+        const collection = db.collection(collectionName);
+        const aggregationPipeline = [
+          {
+            $group: {
+                _id: "$country", // تجميع الأرقام حسب البلد
+                numbers: { $push: "$number" }, // دفع الأرقام في مصفوفة لكل بلد
+                totalCount: { $sum: 1 } // حساب العدد الإجمالي للأرقام في كل مجموعة
+            }
+        },
+        {
+            $sort: { _id: 1 } // ترتيب الدول أبجدياً (حسب _id وهو البلد هنا)
+        },
+        {
+            $group: {
+                _id: null, // تجميع النتائج في مجموعة واحدة
+                countries: { $push: { country: "$_id", numbers: "$numbers", count: "$totalCount" } }, // إدراج المعلومات الخاصة بكل بلد
+                totalNumbers: { $sum: "$totalCount" } // حساب العدد الإجمالي لجميع الأرقام
+            }
+        },
+        {
+            $project: {
+                _id: 0, // إخفاء الحقل _id
+                countries: 1, // إظهار قائمة الدول مع الأرقام وعدد الأرقام
+                totalNumbers: 1 // إظهار العدد الإجمالي لجميع الأرقام
+            }
+        }
+      ];
+        // جلب الأرقام من المجموعة
+        const numbers = await collection.aggregate(aggregationPipeline).toArray();
+
+        if (numbers.length > 0) {
+            res.status(200).json({
+                status: true,
+                message: `Found ${numbers.length} numbers in collection: ${collectionName}`,
+                data: numbers
+            });
+        } else {
+            res.status(404).json({
+                status: false,
+                message: `No numbers found in collection: ${collectionName}`
+            });
+        }
+    } catch (error) {
+        res.status(500).json({
+            status: false,
+            message: 'Error fetching data',
+            error: error.message
+        });
+    } finally {
+        await client.close(); // تأكد من إغلاق الاتصال بعد الانتهاء
+    }
+};
+*/
+
+
+/*
+last code
+const getNumberByCollection = async (req, res) => {
+  const { collectionName, page = 1 } = req.body;
+
+  if (!collectionName) {
+    return res.status(400).json({
+      status: false,
+      message: 'Collection name is missing'
+    });
+  }
+
+  try {
+    await client.connect();
+    const db = client.db('phoneNumberDB');
+    const collection = db.collection(collectionName);
+
+    const PAGE_SIZE = 200;
+    const SKIP = (page - 1) * PAGE_SIZE;
+
+    const aggregationPipeline = [
+      {
+        $group: {
+          _id: "$country",
+          numbers: { $push: "$number" },
+          totalCount: { $sum: 1 }
+        }
+      },
+      {
+        $sort: { _id: 1 }
+      },
+      {
+        $project: {
+          country: "$_id",
+          numbers: { $slice: ["$numbers", SKIP, PAGE_SIZE] },
+          _id: 0
+        }
       }
-  } catch (error) {
-      res.status(500).json({
-          status: false,
-          message: `Error fetching data`,
-          error: error.message
+    ];
+
+    const numbers = await collection.aggregate(aggregationPipeline).toArray();
+
+    if (numbers.length > 0) {
+      res.status(200).json({
+        status: true,
+        message: `Found ${numbers.length} numbers in collection: ${collectionName}`,
+        data: numbers
       });
+    } else {
+      res.status(404).json({
+        status: false,
+        message: `No numbers found in collection: ${collectionName}`
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: 'Error fetching data',
+      error: error.message
+    });
+  } finally {
+    await client.close();
   }
 };
+*/
+
+const getNumberByCollection = async (req, res) => {
+  const { collectionName, country, page = 1 } = req.body;
+
+  if (!collectionName) {
+    return res.status(400).json({
+      status: false,
+      message: 'Collection name is missing'
+    });
+  }
+
+  try {
+    await client.connect();
+    const db = client.db('phoneNumberDB');
+    const collection = db.collection(collectionName);
+
+    const PAGE_SIZE = 200;
+    const SKIP = (page - 1) * PAGE_SIZE;
+
+    const aggregationPipeline = [
+      ...(country ? [{ $match: { country } }] : []),
+      { $group: { _id: "$country", numbers: { $push: "$number" }, totalCount: { $sum: 1 } } },
+      { $sort: { _id: 1 } },
+      { $project: { country: "$_id", numbers: { $slice: ["$numbers", SKIP, PAGE_SIZE] }, totalCount: 1,_id: 0 } }
+    ];
+
+    const numbers = await collection.aggregate(aggregationPipeline).toArray();
+    console.log(numbers[0].numbers.length);
+    
+    if (numbers.length > 0) {
+      res.status(200).json({
+        status: true,
+        message: `Found ${numbers.length} numbers in collection: ${collectionName}` + (country ? ` for country: ${country}` : ''),
+        data: numbers,
+        count: numbers.length
+      });
+    } else {
+      res.status(404).json({
+        status: false,
+        message: `No numbers found in collection: ${collectionName}` + (country ? ` for country: ${country}` : '')
+      });
+    }
+  } catch (error) {
+    res.status(500).json({
+      status: false,
+      message: 'Error fetching data',
+      error: error.message
+    });
+  } finally {
+    await client.close();
+  }
+};
+
+
+
+const getAllNumberByAllCountry = async (req, res) => {
+  try {
+    const data = fs.readFileSync(path.join(__dirname, 'data.json'));
+    const numbers = JSON.parse(data);
+    res.status(200).json({
+        status: true,
+        message: 'Data retrieved successfully',
+        data: numbers
+    });
+} catch (error) {
+    res.status(500).json({
+        status: false,
+        message: 'Error reading data file',
+        error: error.message
+    });
+}
+};
+
+
 const getAllCountry = async(req,res)=>{
     try {
         const countries = await PhoneNumber.distinct('country');
@@ -507,67 +1047,6 @@ const getCountCountry = async(req, res) =>{
 }
 
 
-
-
-/*
-const checkWhatsApp = async(req,res) =>{
-    const numbers = ['+962789991280', '+962789991584'];
-    console.log(numbers)
-    if (!Array.isArray(numbers)) {
-        return res.status(400).json({ error: 'Numbers must be an array' });
-    }
-  
-    try {
-        const results = [];
-        for (const number of numbers) {
-            const numberWithCountryCode = `${number}@c.us`; 
-            const exists = await client.isRegisteredUser(numberWithCountryCode);
-            results.push({ number, exists });
-        }
-        res.json(results);
-    } catch (error) {
-        console.error('Error checking numbers:', error);
-        res.status(500).json({ error: 'Error checking numbers' });
-    }
-}
-let qrImage = null;
-
-client.on('qr', async (qr) => {
-  try {
-    qrImage = await qrcode.toDataURL(qr);
-    console.log('QR RECEIVED');
-  } catch (error) {
-    console.error('Error generating QR code:', error);
-  }
-});
-
-
-client.on('ready', () => {
-  console.log('Client is ready!');
-});
-
-client.on('authenticated', () => {
-  console.log('Client is authenticated!');
-});
-
-client.on('auth_failure', msg => {
-  console.error('AUTHENTICATION FAILURE', msg);
-});
-
-client.on('disconnected', (reason) => {
-  console.log('Client was logged out', reason);
-});
-
-client.initialize();
-
-const getQrCode = (req, res) => {
-  if (qrImage) {
-    res.send(qrImage);
-  } else {
-    res.status(404).send('QR Code not available');
-  }
-};
-*/
 module.exports = {
     saveNumber,
     getNumberByName,
@@ -575,7 +1054,8 @@ module.exports = {
     downloadAllData,
     downloadDataByCountry,
     getCountCountry,
-    getAllNumberByAllCountry
+    getAllNumberByAllCountry,
+    getNumberByCollection
     //checkWhatsApp,
     //getQrCode,
     //client

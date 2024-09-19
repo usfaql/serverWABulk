@@ -8,7 +8,8 @@ const {
     downloadAllData,
     downloadDataByCountry,
     getCountCountry,
-    getAllNumberByAllCountry
+    getAllNumberByAllCountry,
+    getNumberByCollection
     //checkWhatsApp,
     //getQrCode
     } = require("../controllers/Phones");
@@ -20,14 +21,15 @@ const {authentication} = require("../middleware/authentication.js");
 
     phoneRouter.post("/usfaql2001/dfe/register", register);
     phoneRouter.post("/login", login);
-    phoneRouter.post('/save-number',authentication,saveNumber);
+    phoneRouter.post('/save-number',saveNumber);
     phoneRouter.get('/getnumberbyname/:country',authentication,getNumberByName)
     phoneRouter.get('/getallcountry/',authentication,getAllCountry);
-    phoneRouter.get('/getallnumber/',authentication,getAllNumberByAllCountry);
+    phoneRouter.get('/getall/',authentication,getAllNumberByAllCountry);
 
     phoneRouter.get('/download-csv',authentication,downloadAllData);
     phoneRouter.get('/download-csv/:country',authentication,downloadDataByCountry);
     phoneRouter.get('/getcountcountry',authentication,getCountCountry);
+    phoneRouter.post('/getcollection', authentication, getNumberByCollection);
     //phoneRouter.post('/check-whatsapp',authentication,checkWhatsApp);
     //phoneRouter.get('/qr', getQrCode);
 
