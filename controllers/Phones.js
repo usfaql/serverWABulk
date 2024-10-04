@@ -973,7 +973,7 @@ const downloadAllData = async (req, res) => {
       res.status(500).send('Error generating Excel file.');
   }
 };
-
+/*
 const downloadDataByCountry = async(req,res) => {
     const { country } = req.params;
 
@@ -1008,7 +1008,57 @@ const downloadDataByCountry = async(req,res) => {
         res.status(500).send('Error generating CSV file.');
     }
 }
+*/
+const downloadDataByCountry = async (req, res) => {
+    const { country } = req.params;
+    const batchSize = 10000; // حجم الدفعة
+    let skip = 0; // لتحديد بداية البيانات في كل دفعة
+    let phoneNumbers = [];
 
+    try {
+        // جلب الأرقام على دفعات
+        while (true) {
+            const batch = await PhoneNumber.find({ country })
+                .skip(skip)
+                .limit(batchSize);
+
+            if (batch.length === 0) {
+                break; // عند انتهاء البيانات
+            }
+
+            phoneNumbers = phoneNumbers.concat(batch); // إضافة الدفعة إلى البيانات المجمعة
+            skip += batchSize; // الانتقال إلى الدفعة التالية
+        }
+
+        if (phoneNumbers.length === 0) {
+            return res.status(404).send('No data found for the specified country.');
+        }
+
+        const groupedNumbers = phoneNumbers.reduce((acc, { number }) => {
+            if (!acc[country]) {
+                acc[country] = [];
+            }
+            acc[country].push(number);
+            return acc;
+        }, {});
+
+        const headers = [{ id: 'number', title: 'Number' }];
+
+        const records = groupedNumbers[country].map(number => ({ number }));
+
+        const csvWriter = createObjectCsvWriter({
+            path: `${country}.csv`,
+            header: headers
+        });
+
+        await csvWriter.writeRecords(records);
+
+        res.download(`${country}.csv`);
+    } catch (error) {
+        console.error('Error generating CSV file:', error);
+        res.status(500).send('Error generating CSV file.');
+    }
+};
 const getCountCountry = async(req, res) =>{
     try {
         const countryData = await PhoneNumber.aggregate([
