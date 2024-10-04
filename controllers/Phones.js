@@ -609,8 +609,57 @@ const saveNumber = async (req, res) => {
       });
   }
 };
+const getNumberByName = async (req, res) => {
+    const { country } = req.params;
+    const batchSize = 10000; // حجم الدفعة
+    let skip = 0;
+    let allNumbers = [];
 
+    if (!country) {
+        return res.status(400).json({
+            status: false,
+            message: 'Country is missing'
+        });
+    }
 
+    try {
+        // حساب العدد الإجمالي للأرقام
+        const totalNumbers = await PhoneNumber.countDocuments({ country });
+
+        if (totalNumbers === 0) {
+            return res.status(404).json({
+                status: false,
+                message: `No numbers found for country ${country}`
+            });
+        }
+
+        // جلب البيانات على دفعات باستخدام `limit` و `skip`
+        while (skip < totalNumbers) {
+            const batch = await PhoneNumber.find({ country })
+                .select('number')
+                .skip(skip)
+                .limit(batchSize)
+                .lean(); // استخدام lean لجعل البيانات خفيفة
+
+            allNumbers = allNumbers.concat(batch); // دمج الدفعات
+
+            skip += batchSize; // الانتقال إلى الدفعة التالية
+        }
+
+        res.status(200).json({
+            status: true,
+            message: `Found ${allNumbers.length} numbers for country: ${country}`,
+            data: allNumbers
+        });
+    } catch (error) {
+        res.status(500).json({
+            status: false,
+            message: 'Error fetching data',
+            error: error.message
+        });
+    }
+};
+/*
 const getNumberByName = async(req, res) =>{
     const {country} = req.params
 
@@ -645,6 +694,7 @@ const getNumberByName = async(req, res) =>{
       })
     }
 }
+*/
 /*
 const getNumberByCollection = async (req, res) => {
   const { collectionName } = req.body; // استقبال collectionName من الطلب
